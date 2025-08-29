@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
+import { setUser, setError } from '../store/authSlice';
 
 const Register = () => {
     const [ form, setForm ] = useState({ email: '', firstname: '', lastname: '', password: '' });
     const [ submitting, setSubmitting ] = useState(false);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
 
     function handleChange(e) {
@@ -29,10 +32,11 @@ const Register = () => {
             withCredentials: true
         }).then((res) => {
             console.log(res);
+            dispatch(setUser(res.data.user));
             navigate("/");
         }).catch((err) => {
             console.error(err);
-            alert('Registration failed (placeholder)');
+            dispatch(setError(err.response?.data?.message || "Registration failed"));
         })
 
         try {

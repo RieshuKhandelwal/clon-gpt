@@ -4,6 +4,7 @@ import ChatMobileBar from '../components/chat/ChatMobileBar.jsx';
 import ChatSidebar from '../components/chat/ChatSidebar.jsx';
 import ChatMessages from '../components/chat/ChatMessages.jsx';
 import ChatComposer from '../components/chat/ChatComposer.jsx';
+import AuthButtons from '../components/AuthButtons.jsx';
 import '../components/chat/ChatLayout.css';
 import { fakeAIReply } from '../components/chat/aiClient.js';
 import { useDispatch, useSelector } from 'react-redux';
@@ -19,6 +20,7 @@ import {
   addAIMessage,
   setChats
 } from '../store/chatSlice.js';
+import { setUser, setError } from '../store/authSlice.js';
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -26,6 +28,7 @@ const Home = () => {
   const activeChatId = useSelector(state => state.chat.activeChatId);
   const input = useSelector(state => state.chat.input);
   const isSending = useSelector(state => state.chat.isSending);
+  const { isAuthenticated, user } = useSelector(state => state.auth);
   const [ sidebarOpen, setSidebarOpen ] = React.useState(false);
   const [ socket, setSocket ] = useState(null);
 
@@ -58,17 +61,39 @@ const Home = () => {
     setSidebarOpen(false);
   }
 
-  // Ensure at least one chat exists initially
+  // Check authentication status and load user data
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get("http://localhost:3000/api/auth/me", { 
+          withCredentials: true 
+        });
+        dispatch(setUser(response.data.user));
+      } catch (error) {
+        console.log("Not authenticated or auth check failed");
+        dispatch(setUser(null));
+      }
+    };
+
+    checkAuth();
+  }, [dispatch]);
+
+  // Load chats and setup socket only if authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
     axios.get("http://localhost:3000/api/chat", { withCredentials: true })
       .then(response => {
         dispatch(setChats(response.data.chats.reverse()));
       })
+      .catch(error => {
+        console.error("Failed to load chats:", error);
+        dispatch(setError("Failed to load chats"));
+      });
 
     const tempSocket = io("http://localhost:3000", {
       withCredentials: true,
-    })
+    });
 
     tempSocket.on("ai-response", (messagePayload) => {
       console.log("Received AI response:", messagePayload);
@@ -83,7 +108,10 @@ const Home = () => {
 
     setSocket(tempSocket);
 
-  }, []);
+    return () => {
+      tempSocket.disconnect();
+    };
+  }, [isAuthenticated, dispatch]);
 
   const sendMessage = async () => {
 
@@ -136,35 +164,52 @@ return (
     <ChatMobileBar
       onToggleSidebar={() => setSidebarOpen(o => !o)}
       onNewChat={handleNewChat}
+      authButtons={<AuthButtons />}
     />
-    <ChatSidebar
-      chats={chats}
-      activeChatId={activeChatId}
-      onSelectChat={(id) => {
-        dispatch(selectChat(id));
-        setSidebarOpen(false);
-        getMessages(id);
-      }}
-      onNewChat={handleNewChat}
-      open={sidebarOpen}
-    />
+    {isAuthenticated && (
+      <ChatSidebar
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={(id) => {
+          dispatch(selectChat(id));
+          setSidebarOpen(false);
+          getMessages(id);
+        }}
+        onNewChat={handleNewChat}
+        open={sidebarOpen}
+        authButtons={<AuthButtons variant="compact" />}
+      />
+    )}
     <main className="chat-main" role="main">
-      {messages.length === 0 && (
+      {!isAuthenticated ? (
         <div className="chat-welcome" aria-hidden="true">
-          <div className="chip">Early Preview</div>
+          <div className="chip">Welcome</div>
           <h1>ChatGPT Clone</h1>
-          <p>Ask anything. Paste text, brainstorm ideas, or get quick explanations. Your chats stay in the sidebar so you can pick up where you left off.</p>
+          <p>Please login or register to start chatting with Aurora, your AI assistant.</p>
+          <div className="auth-welcome-buttons">
+            <AuthButtons />
+          </div>
         </div>
+      ) : (
+        <>
+          {messages.length === 0 && (
+            <div className="chat-welcome" aria-hidden="true">
+              <div className="chip">Early Preview</div>
+              <h1>ChatGPT Clone</h1>
+              <p>Ask anything. Paste text, brainstorm ideas, or get quick explanations. Your chats stay in the sidebar so you can pick up where you left off.</p>
+            </div>
+          )}
+          <ChatMessages messages={messages} isSending={isSending} />
+          {activeChatId && (
+            <ChatComposer
+              input={input}
+              setInput={(v) => dispatch(setInput(v))}
+              onSend={sendMessage}
+              isSending={isSending}
+            />
+          )}
+        </>
       )}
-      <ChatMessages messages={messages} isSending={isSending} />
-      {
-        activeChatId &&
-        <ChatComposer
-          input={input}
-          setInput={(v) => dispatch(setInput(v))}
-          onSend={sendMessage}
-          isSending={isSending}
-        />}
     </main>
     {sidebarOpen && (
       <button

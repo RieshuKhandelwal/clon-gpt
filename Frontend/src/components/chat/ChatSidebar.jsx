@@ -2,7 +2,7 @@ import React from 'react';
 import './ChatSidebar.css';
 
 
-const ChatSidebar = ({ chats, activeChatId, onSelectChat, onNewChat, open }) => {
+const ChatSidebar = ({ chats, activeChatId, onSelectChat, onNewChat, open, authButtons }) => {
 
 
   
@@ -10,7 +10,10 @@ const ChatSidebar = ({ chats, activeChatId, onSelectChat, onNewChat, open }) => 
     <aside className={"chat-sidebar " + (open ? 'open' : '')} aria-label="Previous chats">
       <div className="sidebar-header">
         <h2>Chats</h2>
-        <button className="small-btn" onClick={onNewChat}>New</button>
+        <div className="sidebar-actions">
+          {authButtons}
+          <button className="small-btn" onClick={onNewChat}>New</button>
+        </div>
       </div>
       <nav className="chat-list" aria-live="polite">
         {chats.map(c => (

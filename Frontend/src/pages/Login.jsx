@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Link,useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
+import { setUser, setError } from '../store/authSlice';
 
 
 const Login = () => {
     const [ form, setForm ] = useState({ email: '', password: '' });
     const [ submitting, setSubmitting ] = useState(false);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     
 
     function handleChange(e) {
@@ -30,9 +33,11 @@ const Login = () => {
             }
         ).then((res) => {
             console.log(res);
+            dispatch(setUser(res.data.user));
             navigate("/");
         }).catch((err) => {
             console.error(err);
+            dispatch(setError(err.response?.data?.message || "Login failed"));
         }).finally(() => {
             setSubmitting(false);
         });
