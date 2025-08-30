@@ -13,7 +13,7 @@ const AuthButtons = ({ variant }) => {
     const handleLogout = async () => {
         try {
             // Clear the cookie by making a logout request to the backend
-            await axios.post('http://localhost:3000/api/auth/logout', {}, {
+            await axios.post('https://clongpt.onrender.com/api/auth/logout', {}, {
                 withCredentials: true
             });
         } catch (error) {
